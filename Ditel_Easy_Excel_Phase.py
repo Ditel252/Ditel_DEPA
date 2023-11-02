@@ -2,12 +2,13 @@ import sys
 import os
 import openpyxl
 import pandas
+import xlwings
 
 #定数
 VERSION:str = "v0.0.1"  #バージョン
 READ_DATA_START_ROW = 1251
 
-class _terminal:
+class _terminal:    #ターミナル出力関係
     def __init__(self):
         self._printStatus = None
     
@@ -19,20 +20,34 @@ class _terminal:
         
         print("[{}]  {}".format(self._printStatus, _message))
         
-class _dataBase:
+class _cell:
+    def __init__(self, _readFilePath, _readSheetName):
+        self._excelFile = xlwings.Book(_readFilePath)
+        self._workSheet = self._excelFile.sheets[_readSheetName]
+        
+    def getValue(self, _readCellAddreess):
+        try:
+            return float(self._workSheet.range(_readCellAddreess).value)
+        except:
+            return self._workSheet.range(_readCellAddreess).value
+    
+    def end(self):
+        self._excelFile.close()
+        
+class _dataBase:    #データベースの読み取り
     def __init__(self, _dataBaseFilePath:str):
         self._excelFilePath:str = _dataBaseFilePath
-        self.workBook = openpyxl.load_workbook(filename=self._excelFilePath, read_only=True)
+        self._workBook = openpyxl.load_workbook(filename=self._excelFilePath, read_only=True)
         
-        self.sheet = self.workBook["DataBase"]
+        self.sheet = self._workBook["DataBase"]
     
     def readCellData(self, _column:int, _row:int):  #_colum:A,B,C… row:1,2,3…
         return self.sheet.cell(column=_column, row=_row).value
     
     def end(self):
-        self.workBook.close
+        self._workBook.close
         
-class _oscilloscopeData:
+class _oscilloscopeData:    #csvからxlsxに変換する
     def __init__(self, _dataDirectoryPath, _oscilloscopeDataName):
         self._inputOscilloscopeData1Name:str = "{}\\{}\\F{}{}.CSV".format(_dataDirectoryPath, _oscilloscopeDataName, _oscilloscopeDataName[3:], READ_DATA1)
         self._inputOscilloscopeData2Name:str = "{}\\{}\\F{}{}.CSV".format(_dataDirectoryPath, _oscilloscopeDataName, _oscilloscopeDataName[3:], READ_DATA2)
@@ -49,13 +64,13 @@ class _oscilloscopeData:
 
 terminal = _terminal()
 
-class _driveApproximateFomula:
+class _driveApproximateFomula:  #近似式を導出する
     def __init__(self, _readFilePath:str, _frequency:int):
         self._readFilePeriod:float = 1.0 / float(_frequency)
         
         self.excelFilePath = _readFilePath
-        self.workSheet = openpyxl.load_workbook(_readFilePath)
-        self.mainSheet = self.workSheet["Sheet1"]
+        self._workBook = openpyxl.load_workbook(_readFilePath)
+        self.mainSheet = self._workBook["Sheet1"]
         
         self.readDataEndRow:int = None
         
@@ -74,12 +89,12 @@ class _driveApproximateFomula:
         self.readDataEndRow = _nowColumn
         self.copyDataEndRow = None
         
-        self.workSheet.close()
+        self._workBook.close()
     
     def _extractRelevantValue(self):
-        self.workSheet.create_sheet(title="forCalculation")
+        self._workBook.create_sheet(title="forCalculation")
         
-        self.calculationSheet = self.workSheet["forCalculation"]
+        self.calculationSheet = self._workBook["forCalculation"]
         
         originalColumn:int = 5
         originalRow:int = READ_DATA_START_ROW
@@ -135,12 +150,48 @@ class _driveApproximateFomula:
     def _findMaximumTime(self):
         self.calculationSheet["E16"] = "yの最大値"
         
-        self.calculationSheet["E16"] = "=MAX(C1:C{:d})".format(self.copyDataEndRow)
+        self.calculationSheet["E17"] = "=MAX(C1:C{:d})".format(self.copyDataEndRow)
     
     def end(self):
-        self.workSheet.save("{}_TemporaryData.xlsx".format(self.excelFilePath))
+        self._workBook.save("{}_TemporaryData.xlsx".format(self.excelFilePath))
+        self._workBook.close()
         
         return "{}_TemporaryData.xlsx".format(self.excelFilePath)
+
+class _findPhasePeakValue:
+    def __init__(self, _readFilePath:str):
+        self._excelFilePath:str = _readFilePath
+        self._workBook = openpyxl.load_workbook(_readFilePath)
+        self._workSheet = self._workBook["forCalculation"]
+        
+        self.cell = _cell(_readFilePath, "forCalculation")
+        
+        self.yMaxValue:float = self.cell.getValue("E17")
+        
+        self.phasePeakValue:float = None
+    
+    def _findPhase(self):
+        _readRow:int = 1
+        
+        while(True):
+            if(self.cell.getValue("C{:d}".format(_readRow)) == None):
+                terminal.print(False, "Find Peak Value")
+                self._workBook.close()
+                exit()
+            elif(self.cell.getValue("C{:d}".format(_readRow)) == self.yMaxValue):
+                terminal.print(True, "Find Peak Value")
+                self.phasePeakValue = self._workSheet.cell(column=1, row=_readRow).value
+                print(_readRow)
+                break
+            
+            _readRow += 1
+        
+    
+    def end(self):
+        self._workBook.close()
+        self.cell.end()
+        return self.phasePeakValue
+        
         
 print("*** Start Ditel Easy Excel Phase Contrast Program ***");
 terminal.print(True, "version : {}".format(VERSION))
@@ -192,6 +243,10 @@ approximateFomula._findApproximateFomula()
 
 approximateFomula._findMaximumTime()
 
-print(approximateFomula.end())
+phasePeakValue = _findPhasePeakValue(approximateFomula.end())
+
+phasePeakValue._findPhase()
+
+print("{:.5g}".format(float(phasePeakValue.end())))
 
 dataBase.end()
