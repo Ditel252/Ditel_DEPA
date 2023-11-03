@@ -4,7 +4,7 @@ import openpyxl
 import pandas
 import xlwings
 
-SOFTWARE_VERSION:str = "v0.2.0"
+SOFTWARE_VERSION:str = "v1.0.0"
     
 def terminalPrint(_status:bool, _message:str, _printOverlay:bool = False):  #ターミナルにメッセージを表示する   返り値:なし
     if(_status):
