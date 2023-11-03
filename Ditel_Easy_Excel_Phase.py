@@ -26,7 +26,7 @@ def csvToXlsx(_filePath:str):   #csvファイルをxlsxに変換する    返り
         terminalPrint(True, "read {}".format(_filePath))
     except:
         terminalPrint(False, "E001 : read {}".format(_filePath))
-        exit()
+        sys.exit()
     
     try:
         _outputFilePath:str = "{}xlsx".format(_filePath[:-3])
@@ -35,7 +35,7 @@ def csvToXlsx(_filePath:str):   #csvファイルをxlsxに変換する    返り
         return _outputFilePath
     except:
         terminalPrint(False, "E002 : convert to excel")
-        exit()
+        sys.exit()
     
 
 class _cell:    #高度なセルの操作
@@ -50,7 +50,7 @@ class _cell:    #高度なセルの操作
             terminalPrint(True, "open {}".format(_filePath))
         except:
             terminalPrint(False, "E003 : open {}".format(_filePath))
-            exit()
+            sys.exit()
         
     def getValue(self, _cellAddreess, _printOverlay:bool = False):  #任意のセルの値を読み取る   返り値:読み取ったセルの値
         _readValue = self._workSheet.range(_cellAddreess).value
@@ -67,7 +67,7 @@ class _cell:    #高度なセルの操作
             terminalPrint(True, "close {}".format(self._excelFilePath))
         except:
             terminalPrint(False, "E004 : close {}".format(self._excelFilePath))
-            exit()
+            sys.exit()
 
     
 class _dataBase:    #データベースファイルの操作
@@ -81,7 +81,7 @@ class _dataBase:    #データベースファイルの操作
             terminalPrint(True, "close dataBase file")
         except:
             terminalPrint(False, "E005 : close dataBase file")
-            exit()
+            sys.exit()
 
     def openSheet(self):    #シートを開く   返り値:なし
         try:
@@ -90,7 +90,7 @@ class _dataBase:    #データベースファイルの操作
             terminalPrint(True, "open dataBase sheet")
         except:
             terminalPrint(False, "E006 : open dataBase sheet")
-            exit()
+            sys.exit()
 
     def readCellValue(self, _column:int, _row:int):  #任意のセルの値を読み取る  返り値:なし
         try:
@@ -99,7 +99,7 @@ class _dataBase:    #データベースファイルの操作
             return _readValue
         except:
             terminalPrint(False, "E007 : read value")
-            exit()
+            sys.exit()
 
 
 class _approximateFomula:  #近似式の導出
@@ -115,7 +115,7 @@ class _approximateFomula:  #近似式の導出
             terminalPrint(True, "open sheet")
         except:
             terminalPrint(False, "E008 : open sheet")
-            exit()
+            sys.exit()
 
     def findOneCycle(self): #1周期分の行の範囲を導出    返り値:なし
         _nowColumn = self._readStartRow
@@ -140,7 +140,7 @@ class _approximateFomula:  #近似式の導出
             terminalPrint(True, "create forCaluculation sheet")
         except:
             terminalPrint(False, "E009 : create forCaluculation sheet")
-            exit()
+            sys.exit()
         
         _originalNowColumn:int = 5
         _originalNowRow:int = self._readStartRow
@@ -175,7 +175,7 @@ class _approximateFomula:  #近似式の導出
             self._toEndRow = _toNowRow - 1
         else:
             terminalPrint(False, "E010 : copy extract For the relevant value")
-            exit()
+            sys.exit()
     
     def enterApproximateFomula(self):    #近似式の次数ごとの係数をセルに入力 返り値:なし
         self._calculationSheet["E2"] = "近似式"
@@ -217,7 +217,7 @@ class _approximateFomula:  #近似式の導出
             return "{}_TemporaryData.xlsx".format(self._excelFilePath)
         except:
             terminalPrint(False, "E011 : save approximate file")
-            exit()
+            sys.exit()
         
     def closeSheet(self):   #対象のシートを閉じる   返り値:なし
         try:
@@ -241,7 +241,7 @@ class _readEachValue:   #ファイルから各値を読み取る
             terminalPrint(True, "open sheet")
         except:
             terminalPrint(False, "E012 : open sheet")
-            exit()
+            sys.exit()
     
     def findPhasePeak(self):    #ピーク値をとるときの時間を導出 返り値:導出された時間
         cell.openSheet(self._excelFilePath, "forCalculation")
@@ -255,7 +255,7 @@ class _readEachValue:   #ファイルから各値を読み取る
             if(_readNowRowValue == None):
                 terminalPrint(False, "E013 : find peak value")
                 self._workBook.close()
-                exit()
+                sys.exit()
             elif(_readNowRowValue == _yMaxValue):
                 terminalPrint(True, "find peak value                    ")
                 _phasePeakValue = self._workSheet.cell(column=1, row=_readNowRow).value
@@ -276,7 +276,7 @@ class _readEachValue:   #ファイルから各値を読み取る
             terminalPrint(True, "close sheet")
         except:
             terminalPrint(False, "E014 : close sheet")
-            exit()
+            sys.exit()
 
 
 class _main:    #メインプログラム
@@ -290,7 +290,7 @@ class _main:    #メインプログラム
             terminalPrint(True, "create output file")
         except:
             terminalPrint(False, "E016 : create output file")
-            exit()
+            sys.exit()
         
         self._newWorkSheet.title = "計算結果"
         
@@ -306,7 +306,12 @@ class _main:    #メインプログラム
         self._newWorkSheet["H2"] = "周波数(Hz)"
         self._newWorkSheet["I2"] = "{}/{}".format(READ_DATA2, READ_DATA1)
         
-        self._newWorkBook.save(OUTPUT_FILE_PATH)
+        try:
+            self._newWorkBook.save(OUTPUT_FILE_PATH)
+            terminalPrint(True, "temporary save output file")
+        except:
+            terminalPrint(False, "E017 : temporary save output file")
+            sys.exit()
         
     def openSheet(self):    #計算結果を格納するシートを開く 返り値:なし
         try:
@@ -314,8 +319,8 @@ class _main:    #メインプログラム
             self._workSheet = self._workBook["計算結果"]
             terminalPrint(True, "open {}".format(OUTPUT_FILE_PATH))
         except:
-            terminalPrint(False, "E017 : open {}".format(OUTPUT_FILE_PATH))
-            exit()
+            terminalPrint(False, "E018 : open {}".format(OUTPUT_FILE_PATH))
+            sys.exit()
         
     def derivationPhaseRatio(self, _row:int):   #位相差及び増幅率を導出&ファイルに保存  返り値:まだ計算していないファイルがあるか
         _frequency = dataBase.readCellValue(1, _row)
@@ -392,8 +397,8 @@ class _main:    #メインプログラム
             self._workBook.save(OUTPUT_FILE_PATH)
             terminalPrint(True, "save output file")
         except:
-            terminalPrint(False, "E018 : save output file")
-            exit()
+            terminalPrint(False, "E019 : save output file")
+            sys.exit()
 
 
 print("*** Start Ditel Easy Excel Phase Contrast Program ***");
@@ -421,7 +426,7 @@ except:
     print("please input data directory path")
     print('Ex : python3 ./Ditel_Easy_Excel_Phase "Data1 Type" "Data2 Type" "data directory path" "output file name"')
     print('only "CH1", "CH2" or "MTH" can be entered for "DATA Type" and "DATA2 Type"')
-    exit()
+    sys.exit()
     
 DATA_BASE_FILE_PAHT:str = "{}\\{}".format(os.getcwd(), "dataBase.xlsx")
 
