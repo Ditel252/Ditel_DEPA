@@ -3,8 +3,9 @@ import os
 import openpyxl
 import pandas
 import xlwings
+import math
 
-SOFTWARE_VERSION:str = "v1.0.0"
+SOFTWARE_VERSION:str = "v1.1.0"
     
 def terminalPrint(_status:bool, _message:str, _printOverlay:bool = False):  #ターミナルにメッセージを表示する   返り値:なし
     if(_status):
@@ -295,8 +296,8 @@ class _main:    #メインプログラム
         self._newWorkSheet.title = "計算結果"
         
         self._newWorkSheet["A1"] = "ファイル詳細"
-        self._newWorkSheet["E1"] = "位相差"
-        self._newWorkSheet["H1"] = "増幅率"
+        self._newWorkSheet["E1"] = "位相差 (°)"
+        self._newWorkSheet["H1"] = "増幅率 (dB)"
         
         self._newWorkSheet["A2"] = "周波数(Hz)"
         self._newWorkSheet["B2"] = "{}ファイル名".format(READ_DATA1)
@@ -371,10 +372,10 @@ class _main:    #メインプログラム
         else:
             self._phase:float = 360 * (((1 / _frequency) - abs(float(_OSCFile2Phase) - float(_OSCFile1Phase))) / (1 / _frequency))
         
-        self._ratio:float = float(_OSCFile2PeakPeak) / float(_OSCFile1PeakPeak)
+        self._ratio:float = 20 * math.log10(float(_OSCFile2PeakPeak) / float(_OSCFile1PeakPeak))
         
         terminalPrint(True, "phase contrast = {:f} (°)".format(self._phase))
-        terminalPrint(True, "amplification ratio = {:f}".format(self._ratio))
+        terminalPrint(True, "amplification ratio = {:f} (dB)".format(self._ratio))
 
         readEachValue.closeSheet()
         
@@ -401,7 +402,7 @@ class _main:    #メインプログラム
             sys.exit()
 
 
-print("*** Start Ditel Easy Excel Phase Contrast Program ***");
+print("*** Start Ditel Easy derivation Phase and Amplification Program ***");
 terminalPrint(True, "version : {}".format(SOFTWARE_VERSION))
 
 try:
