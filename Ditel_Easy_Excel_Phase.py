@@ -5,202 +5,279 @@ import pandas
 import xlwings
 
 #定数
-VERSION:str = "v0.0.1"  #バージョン
-READ_DATA_START_ROW = 1251
+SOFTWARE_VERSION:str = "v0.0.1"
+    
+def terminalPrint(_status:bool, _message:str):  #ターミナルにメッセージを表示する   返り値:なし
+    if(_status):
+        _printStatus = "  OK  "
+    else:
+        _printStatus = "FAILED"
+    
+    print("[{}]  {}".format(_printStatus, _message))
 
-class _terminal:    #ターミナル出力関係
+def oscilloscopeFilePath(_directoryPath, _dataName, _channel, _dataType): #ALLxxxxからオシロスコープのExcelファイルの絶対パスを生成する 返り値:絶対パス
+    return "{}\\{}\\F{}{}.{}".format(_directoryPath, _dataName, _dataName[3:], _channel, _dataType)
+
+def csvToXlsx(_filePath:str):   #csvファイルをxlsxに変換する    返り値:出力ファイルの絶対パス
+    try:
+        _inputFile = pandas.read_csv(_filePath)
+        terminalPrint(True, "read {}".format(_filePath))
+    except:
+        terminalPrint(False, "read {}".format(_filePath))
+        exit()
+    
+    try:
+        _outputFilePath:str = "{}xlsx".format(_inputFile[:-3])
+        _inputFile.to_excel(_outputFilePath)
+        terminalPrint(True, "convert to excel")
+        return _outputFilePath
+    except:
+        terminalPrint(False, "convert to excel")
+        exit()
+    
+
+class _cell:    #高度なセルの操作
     def __init__(self):
-        self._printStatus = None
-    
-    def print(self, _status:bool, _message:str):
-        if(_status):
-            self._printStatus = "  OK  "
-        else:
-            self._printStatus = "FAILED"
+        pass
         
-        print("[{}]  {}".format(self._printStatus, _message))
-        
-class _cell:
-    def __init__(self, _readFilePath, _readSheetName):
-        self._excelFile = xlwings.Book(_readFilePath)
-        self._workSheet = self._excelFile.sheets[_readSheetName]
-        
-    def getValue(self, _readCellAddreess):
+    def openSheet(self, _filePath:str, _sheetName:str): #読み取る対象のシートを開く 返り値:なし
         try:
-            return float(self._workSheet.range(_readCellAddreess).value)
+            self._excelFilePath = _filePath
+            self._excelFile = xlwings.Book(_filePath)
+            self._workSheet = self._excelFile.sheets[_sheetName]
+            terminalPrint(True, "open {}".format(_filePath))
         except:
-            return self._workSheet.range(_readCellAddreess).value
+            terminalPrint(False, "open {}".format(_filePath))
+            exit()
+        
+    def getValue(self, _cellAddreess):  #任意のセルの値を読み取る   返り値:読み取ったセルの値
+        _readValue = self._workSheet.range(_cellAddreess).value
+        try:
+            terminalPrint(True, "read value = {:f}".format(float(_readValue)))
+            return float(_readValue)
+        except:
+            terminalPrint(True, "read value = {}".format(str(_readValue)))
+            return self._workSheet.range(_cellAddreess).value
     
-    def end(self):
-        self._excelFile.close()
-        
-class _dataBase:    #データベースの読み取り
-    def __init__(self, _dataBaseFilePath:str):
-        self._excelFilePath:str = _dataBaseFilePath
-        self._workBook = openpyxl.load_workbook(filename=self._excelFilePath, read_only=True)
-        
-        self.sheet = self._workBook["DataBase"]
-    
-    def readCellData(self, _column:int, _row:int):  #_colum:A,B,C… row:1,2,3…
-        return self.sheet.cell(column=_column, row=_row).value
-    
-    def end(self):
-        self._workBook.close
-        
-class _oscilloscopeData:    #csvからxlsxに変換する
-    def __init__(self, _dataDirectoryPath, _oscilloscopeDataName):
-        self._inputOscilloscopeData1Name:str = "{}\\{}\\F{}{}.CSV".format(_dataDirectoryPath, _oscilloscopeDataName, _oscilloscopeDataName[3:], READ_DATA1)
-        self._inputOscilloscopeData2Name:str = "{}\\{}\\F{}{}.CSV".format(_dataDirectoryPath, _oscilloscopeDataName, _oscilloscopeDataName[3:], READ_DATA2)
-        
-        self._outputOscilloscopeData1Name:str = "{}\\{}\\F{}{}.xlsx".format(_dataDirectoryPath, _oscilloscopeDataName, _oscilloscopeDataName[3:], READ_DATA1)
-        self._outputOscilloscopeData2Name:str = "{}\\{}\\F{}{}.xlsx".format(_dataDirectoryPath, _oscilloscopeDataName, _oscilloscopeDataName[3:], READ_DATA2)
-        
-        self.baseCSVFile1 = pandas.read_csv(self._inputOscilloscopeData1Name)
-        self.baseCSVFile2 = pandas.read_csv(self._inputOscilloscopeData2Name)
-        
-    def convert(self):
-        self.baseCSVFile1.to_excel(self._outputOscilloscopeData1Name)
-        self.baseCSVFile2.to_excel(self._outputOscilloscopeData2Name)
+    def closeSheet(self): #読み取る対象のシートを閉じる  返り値:なし
+        try:
+            self._excelFile.close()
+            terminalPrint(True, "close {}".format(self._excelFilePath))
+        except:
+            terminalPrint(False, "close {}".format(self._excelFilePath))
+            exit()
 
-terminal = _terminal()
+    
+class _dataBase:    #データベースファイルの操作
+    def __init__(self, _filePath:str):  #データベースのファイルを指定する   返り値:なし
+        self._excelFilePath:str = _filePath
+        terminalPrint(True, "specify {} as dataBase file".format(self._excelFilePath))
+        
+    def __del__(self):  #データベースファイルを閉じる   返り値:なし
+        try:
+            self._workBook.close()
+            terminalPrint(True, "close dataBase file")
+        except:
+            terminalPrint(False, "close dataBase file")
+            exit()
 
-class _driveApproximateFomula:  #近似式を導出する
-    def __init__(self, _readFilePath:str, _frequency:int):
-        self._readFilePeriod:float = 1.0 / float(_frequency)
-        
-        self.excelFilePath = _readFilePath
-        self._workBook = openpyxl.load_workbook(_readFilePath)
-        self.mainSheet = self._workBook["Sheet1"]
-        
-        self.readDataEndRow:int = None
-        
-    def _findRangeOf1Cycle(self):
-        _nowColumn = READ_DATA_START_ROW
+    def openSheet(self):    #シートを開く   返り値:なし
+        try:
+            self._workBook = openpyxl.load_workbook(filename=self._excelFilePath, read_only=True)
+            self._workSheet = self._workBook["DataBase"]
+            terminalPrint(True, "open dataBase sheet")
+        except:
+            terminalPrint(False, "open dataBase sheet")
+            exit()
+
+    def readCellValue(self, _column:int, _row:int):  #任意のセルの値を読み取る  返り値:なし
+        try:
+            _readValue = self._workSheet.cell(column=_column, row=_row).value
+            terminalPrint(True, "read value = {:f}".format(float(_readValue)))
+            return _readValue
+        except:
+            terminalPrint(False, "read value")
+            exit()
+
+
+class _approximateFomula:  #近似式の導出
+    def __init__(self): #t=0の行を指定する  返り値:なし
+        self._readStartRow:int = 1251
+    
+    def openSheet(self, _filePath:str, _frequency:int): #対象のシートを開く 返り値:なし
+        self._period:float = 1.0 / float(_frequency)
+        self._excelFilePath = _filePath
+        try:
+            self._workBook = openpyxl.load_workbook(self._excelFilePath)
+            self._mainWorkSheet = self._workBook["Sheet1"]
+            terminalPrint(True, "open sheet")
+        except:
+            terminalPrint(False, "open sheet")
+            eixt()
+
+    def findOneCycle(self): #1周期分の行の範囲を導出    返り値:なし
+        _nowColumn = self._readStartRow
         
         while(True):
-            if(float(self.mainSheet.cell(column=5, row=_nowColumn).value) > self._readFilePeriod):
+            if(float(self._mainWorkSheet.cell(column=5, row=_nowColumn).value) > self._period):
                 _nowColumn -= 1
                 break
             else:
                 _nowColumn += 1
         
-        terminal.print(True, "Find Range Of 1 Cycle")
+        terminalPrint(True, "find range of 1 Cycle")
         
-        self.readDataEndRow = _nowColumn
-        self.copyDataEndRow = None
-        
-        self._workBook.close()
+        self._readEndRow:int = _nowColumn
+        self._toEndRow = None
     
-    def _extractRelevantValue(self):
-        self._workBook.create_sheet(title="forCalculation")
+    def extractOneValue(self):  #1周期分の想定データを別のファイルに抽出    返り値:なし
+        try:
+            self._workBook.create_sheet(title="forCalculation")
+            self._calculationSheet = self._workBook["forCalculation"]
+            
+            terminalPrint(True, "create forCaluculation sheet")
+        except:
+            terminalPrint(False, "create forCaluculation sheet")
+            exit()
         
-        self.calculationSheet = self._workBook["forCalculation"]
-        
-        originalColumn:int = 5
-        originalRow:int = READ_DATA_START_ROW
-        toColumn:int = 1
-        toRow:int = 1
+        _originalNowColumn:int = 5
+        _originalNowRow:int = self._readStartRow
+        _toNowColumn:int = 1
+        _toNowRow:int = 1
         
         while (True):
-            if(originalRow <= self.readDataEndRow):
-                self.calculationSheet.cell(column=toColumn, row=toRow).value = self.mainSheet.cell(column=originalColumn, row=originalRow).value
+            if(_originalNowRow <= self._readEndRow):
+                self._calculationSheet.cell(column=_toNowColumn, row=_toNowRow).value = self._mainWorkSheet.cell(column=_originalNowColumn, row=_originalNowRow).value
                 
-                originalRow += 1
-                toRow += 1
+                _originalNowRow += 1
+                _toNowRow += 1
             else:
                 break
         
-        originalRow = READ_DATA_START_ROW
-        toRow = 1
-        originalColumn += 1
-        toColumn += 1
+        _originalNowColumn += 1
+        _originalNowRow = self._readStartRow
+        _toNowColumn += 1
+        _toNowRow = 1
             
         while (True):
-            if(originalRow <= self.readDataEndRow):
-                self.calculationSheet.cell(column=toColumn, row=toRow).value = self.mainSheet.cell(column=originalColumn, row=originalRow).value
+            if(_originalNowRow <= self._readEndRow):
+                self._calculationSheet.cell(column=_toNowColumn, row=_toNowRow).value = self._mainWorkSheet.cell(column=_originalNowColumn, row=_originalNowRow).value
                 
-                originalRow += 1
-                toRow += 1
+                _originalNowRow += 1
+                _toNowRow += 1
             else:
                 break
         
-        if((toRow - 2) == (self.readDataEndRow - READ_DATA_START_ROW)):
-            terminal.print(True, "Copy Extract For The Relevant Value")
-            self.copyDataEndRow = toRow - 1
+        if((_toNowRow - 2) == (self._readEndRow - self._readStartRow)):
+            terminalPrint(True, "copy extract for the relevant value")
+            self._toEndRow = _toNowRow - 1
         else:
-            terminal.print(False, "Copy Extract For The Relevant Value")
+            terminalPrint(False, "copy extract For the relevant value")
             exit()
     
-    def _findApproximateFomula(self):
-        self.calculationSheet["E2"] = "近似式"
-        self.calculationSheet["E3"] = "指数"
-        self.calculationSheet["F3"] = "近似式の係数"
+    def enterApproximateFomula(self):    #近似式の次数ごとの係数をセルに入力 返り値:なし
+        self._calculationSheet["E2"] = "近似式"
+        self._calculationSheet["E3"] = "指数"
+        self._calculationSheet["F3"] = "近似式の係数"
         
         for _i in range(10, -1, -1):
-            self.calculationSheet.cell(column=5, row=(14 -_i)).value = int(_i)
+            self._calculationSheet.cell(column=5, row=(14 -_i)).value = int(_i)
             
             if(_i != 0):
-                self.calculationSheet.cell(column=6, row=(14 -_i)).value = "=INDEX(LINEST(B1:B{:d},A1:A{:d}^{{10,9,8,7,6,5,4,3,2,1}}),1,E{:d})".format(self.copyDataEndRow, self.copyDataEndRow, 14 -_i)
+                self._calculationSheet.cell(column=6, row=(14 -_i)).value = "=INDEX(LINEST(B1:B{:d},A1:A{:d}^{{10,9,8,7,6,5,4,3,2,1}}),1,E{:d})".format(self._toEndRow, self._toEndRow, 14 -_i)
             else:
-                self.calculationSheet.cell(column=6, row=(14 -_i)).value = "=INDEX(LINEST(B1:B{:d},A1:A{:d}^{{10,9,8,7,6,5,4,3,2,1}}),1,11)".format(self.copyDataEndRow, self.copyDataEndRow)
+                self._calculationSheet.cell(column=6, row=(14 -_i)).value = "=INDEX(LINEST(B1:B{:d},A1:A{:d}^{{10,9,8,7,6,5,4,3,2,1}}),1,11)".format(self._toEndRow, self._toEndRow)
                 
-        for _i in range(1, self.copyDataEndRow + 1, 1):
-            self.calculationSheet.cell(column=3, row=_i).value = "=F4*(A{}^E4)+F5*(A{}^E5)+F6*(A{}^E6)+F7*(A{}^E7)+F8*(A{}^E8)+F9*(A{}^E9)+F10*(A{}^E10)+F11*(A{}^E11)+F12*(A{}^E12)+F13*(A{}^E13)+F14".format(_i, _i, _i, _i, _i, _i, _i, _i, _i, _i)
+        terminalPrint(True, "enter approximate formula")
+        
+    def enterApproximateValue(self):    #近似値をセルに入力 返り値:なし
+        for _i in range(1, self._toEndRow + 1, 1):
+            self._calculationSheet.cell(column=3, row=_i).value = "=F4*(A{}^E4)+F5*(A{}^E5)+F6*(A{}^E6)+F7*(A{}^E7)+F8*(A{}^E8)+F9*(A{}^E9)+F10*(A{}^E10)+F11*(A{}^E11)+F12*(A{}^E12)+F13*(A{}^E13)+F14".format(_i, _i, _i, _i, _i, _i, _i, _i, _i, _i)
+        
+        terminalPrint(True, "enter approximate value")
     
-    def _findMaximumTime(self):
-        self.calculationSheet["E16"] = "yの最大値"
+    def enterMaximumTime(self):  #近似式の最大値をセルに入力 返り値:なし
+        self._calculationSheet["E16"] = "yの最大値"
         
-        self.calculationSheet["E17"] = "=MAX(C1:C{:d})".format(self.copyDataEndRow)
+        self._calculationSheet["E17"] = "=MAX(C1:C{:d})".format(self._toEndRow)
         
-    def _findPeakToPeak(self):
-        self.calculationSheet["F16"] = "Peak To Peak"
+        terminalPrint(True, "enter y-axis max value")
         
-        self.calculationSheet["F17"] = "=ABS(MAX(C1:C{:d}) - MIN(C1:C{:d}))".format(self.copyDataEndRow, self.copyDataEndRow)
+    def enterPeakToPeak(self):  #近似値のピーク-ピーク値をセルに入力 返り値:なし
+        self._calculationSheet["F16"] = "ピーク-ピーク値"
+        
+        self._calculationSheet["F17"] = "=ABS(MAX(C1:C{:d}) - MIN(C1:C{:d}))".format(self._toEndRow, self._toEndRow)
     
-    def end(self):
-        self._workBook.save("{}_TemporaryData.xlsx".format(self.excelFilePath))
-        self._workBook.close()
+    def saveApproximateFile(self):  #近似式等を入力したファイルを保存する   返り値:保存したファイルの絶対パス
+        try:
+            self._workBook.save("{}_TemporaryData.xlsx".format(self.excelFilePath))
+            terminalPrint(True, "save approximate file")
+            return "{}_TemporaryData.xlsx".format(self.excelFilePath)
+        except:
+            terminalPrint(False, "save approximate file")
+            exit()
         
-        return "{}_TemporaryData.xlsx".format(self.excelFilePath)
+    def closeSheet(self):   #対象のシートを閉じる   返り値:なし
+        try:
+            self._workBook.close()
+            terminalPrint(True, "close sheet")
+        except:
+            terminalPrint(True, "close sheet")
+            
 
 class _findPhasePeakValue:
-    def __init__(self, _readFilePath:str):
-        self._excelFilePath:str = _readFilePath
-        self._workBook = openpyxl.load_workbook(_readFilePath)
-        self._workSheet = self._workBook["forCalculation"]
+    def __init__(self):
+        pass
         
-        self.cell = _cell(_readFilePath, "forCalculation")
+    def openSheet(self, _filePath:str): #対象のシートを開く 戻り値:なし
+        self._excelFilePath:str = _filePath
         
-        self.yMaxValue:float = self.cell.getValue("E17")
-        self.yPeakToPeak:float = self.cell.getValue("F17")
-        
-        self.phasePeakValue:float = None
+        try:
+            self._workBook = openpyxl.load_workbook(self._excelFilePath)
+            self._workSheet = self._workBook["forCalculation"]
+            
+            terminalPrint(True, "open sheet")
+        except:
+            terminalPrint(False, "open sheet")
+            exit()
     
-    def _findPhase(self):
-        _readRow:int = 1
+    def findPhasePeak(self):    #ピーク値をとるときの時間を導出 戻り値:導出された時間
+        cell.openSheet(self._excelFilePath, "forCalculation")
+        
+        _yMaxValue:float = cell.getValue("E17")
+        
+        _readNowRow:int = 1
         
         while(True):
-            if(self.cell.getValue("C{:d}".format(_readRow)) == None):
-                terminal.print(False, "Find Peak Value")
+            if(cell.getValue("C{:d}".format(_readNowRow)) == None):
+                terminalPrint(False, "find peak value")
                 self._workBook.close()
                 exit()
-            elif(self.cell.getValue("C{:d}".format(_readRow)) == self.yMaxValue):
-                terminal.print(True, "Find Peak Value")
-                self.phasePeakValue = self._workSheet.cell(column=1, row=_readRow).value
-                print(_readRow)
+            elif(cell.getValue("C{:d}".format(_readNowRow)) == _yMaxValue):
+                terminalPrint(True, "find peak value")
+                _phasePeakValue = self._workSheet.cell(column=1, row=_readNowRow).value
+                print(_readNowRow)
                 break
             
-            _readRow += 1
+            _readNowRow += 1
         
+        return _phasePeakValue
     
-    def end(self):
-        self._workBook.close()
-        self.cell.end()
-        return self.yPeakToPeak
-        
-        
+    def findPeakPeakValue(self):    #ピーク-ピーク値を導出  戻り値:ピーク-ピーク値
+        return cell.getValue("F17")
+    
+    def closeSheet(self):   #対象のシートを閉じる   返り値:なし
+        try:
+            self._workBook.close()
+            
+            terminalPrint(True, "close sheet")
+        except:
+            terminalPrint(False, "close sheet")
+            exit()
+            
+
 print("*** Start Ditel Easy Excel Phase Contrast Program ***");
-terminal.print(True, "version : {}".format(VERSION))
+terminalPrint(True, "version : {}".format(VERSION))
 
 try:
     DATA_DIRECTORY_PATH:str = sys.argv[1]
@@ -213,12 +290,12 @@ try:
     if((READ_DATA2 != "CH1") and (READ_DATA2 != "CH2") and (READ_DATA2 != "MTH")):
         raise ValueError(None)
     
-    terminal.print(True, "Read Data Information")
-    terminal.print(True, "Read Data Directory Path = {}".format(DATA_DIRECTORY_PATH))
-    terminal.print(True, "Read Data1 Type = {}".format(READ_DATA1))
-    terminal.print(True, "Read Data2 Type = {}".format(READ_DATA2))
+    terminalPrint(True, "Read Data Information")
+    terminalPrint(True, "Read Data Directory Path = {}".format(DATA_DIRECTORY_PATH))
+    terminalPrint(True, "Read Data1 Type = {}".format(READ_DATA1))
+    terminalPrint(True, "Read Data2 Type = {}".format(READ_DATA2))
 except:
-    terminal.print(False, "Read Data Information")
+    terminalPrint(False, "Read Data Information")
     print("Please input Data Directory Path")
     print('Example : python3 ./Ditel_Easy_Excel_Phase "Data Directory Path" "Data1 Type" "Data2 Type"')
     print('Only "CH1", "CH2" or "MTH" can be entered for "DATA Type" and "DATA2 Type"')
@@ -229,11 +306,13 @@ DATA_BASE_FILE_PAHT:str = "{}\\{}".format(os.getcwd(), "readDataBase.xlsx")
 try:
     dataBase = _dataBase(DATA_BASE_FILE_PAHT)
     
-    terminal.print(True, "Read Data Base File")
+    terminalPrint(True, "Read Data Base File")
 except:
-    terminal.print(False, "Read Data Base File")
+    terminalPrint(False, "Read Data Base File")
     
     exit()
+    
+cell = _cell()
     
 oscilloscopeData = _oscilloscopeData(DATA_DIRECTORY_PATH, dataBase.readCellData(2, 2))
 
