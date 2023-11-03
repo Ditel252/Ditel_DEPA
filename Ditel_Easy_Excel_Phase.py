@@ -5,7 +5,7 @@ import pandas
 import xlwings
 
 #定数
-SOFTWARE_VERSION:str = "v0.0.1"
+SOFTWARE_VERSION:str = "v0.1.0"
     
 def terminalPrint(_status:bool, _message:str):  #ターミナルにメッセージを表示する   返り値:なし
     if(_status):
@@ -15,7 +15,7 @@ def terminalPrint(_status:bool, _message:str):  #ターミナルにメッセー�
     
     print("[{}]  {}".format(_printStatus, _message))
 
-def oscilloscopeFilePath(_directoryPath, _dataName, _channel, _dataType): #ALLxxxxからオシロスコープのExcelファイルの絶対パスを生成する 返り値:絶対パス
+def oscilloscopeFilePath(_directoryPath:str, _dataName:str, _channel:str, _dataType:str): #ALLxxxxからオシロスコープのExcelファイルの絶対パスを生成する 返り値:絶対パス
     return "{}\\{}\\F{}{}.{}".format(_directoryPath, _dataName, _dataName[3:], _channel, _dataType)
 
 def csvToXlsx(_filePath:str):   #csvファイルをxlsxに変換する    返り値:出力ファイルの絶対パス
@@ -225,7 +225,7 @@ class _approximateFomula:  #近似式の導出
             terminalPrint(True, "close sheet")
             
 
-class _findPhasePeakValue:
+class _readEachValue:   #ファイルから各値を読み取る
     def __init__(self):
         pass
         
@@ -277,12 +277,12 @@ class _findPhasePeakValue:
             
 
 print("*** Start Ditel Easy Excel Phase Contrast Program ***");
-terminalPrint(True, "version : {}".format(VERSION))
+terminalPrint(True, "version : {}".format(SOFTWARE_VERSION))
 
 try:
-    DATA_DIRECTORY_PATH:str = sys.argv[1]
-    READ_DATA1:str = sys.argv[2]
-    READ_DATA2:str = sys.argv[3]
+    READ_DATA1:str = sys.argv[1]
+    READ_DATA2:str = sys.argv[2]
+    DATA_DIRECTORY_PATH:str = sys.argv[3]
     
     if((READ_DATA1 != "CH1") and (READ_DATA1 != "CH2") and (READ_DATA1 != "MTH")):
         raise ValueError(None)
@@ -290,49 +290,45 @@ try:
     if((READ_DATA2 != "CH1") and (READ_DATA2 != "CH2") and (READ_DATA2 != "MTH")):
         raise ValueError(None)
     
-    terminalPrint(True, "Read Data Information")
-    terminalPrint(True, "Read Data Directory Path = {}".format(DATA_DIRECTORY_PATH))
-    terminalPrint(True, "Read Data1 Type = {}".format(READ_DATA1))
-    terminalPrint(True, "Read Data2 Type = {}".format(READ_DATA2))
+    terminalPrint(True, "read data information")
+    terminalPrint(True, "read data directory Path = {}".format(DATA_DIRECTORY_PATH))
+    terminalPrint(True, "read Data1 type = {}".format(READ_DATA1))
+    terminalPrint(True, "read Data2 type = {}".format(READ_DATA2))
 except:
-    terminalPrint(False, "Read Data Information")
-    print("Please input Data Directory Path")
-    print('Example : python3 ./Ditel_Easy_Excel_Phase "Data Directory Path" "Data1 Type" "Data2 Type"')
-    print('Only "CH1", "CH2" or "MTH" can be entered for "DATA Type" and "DATA2 Type"')
+    terminalPrint(False, "read data Information")
+    print("please input data directory path")
+    print('Ex : python3 ./Ditel_Easy_Excel_Phase  "Data1 Type" "Data2 Type" "data Directory Path"')
+    print('only "CH1", "CH2" or "MTH" can be entered for "DATA Type" and "DATA2 Type"')
     exit()
     
-DATA_BASE_FILE_PAHT:str = "{}\\{}".format(os.getcwd(), "readDataBase.xlsx")
+DATA_BASE_FILE_PAHT:str = "{}\\{}".format(os.getcwd(), "dataBase.xlsx")
 
-try:
-    dataBase = _dataBase(DATA_BASE_FILE_PAHT)
-    
-    terminalPrint(True, "Read Data Base File")
-except:
-    terminalPrint(False, "Read Data Base File")
-    
-    exit()
-    
 cell = _cell()
-    
-oscilloscopeData = _oscilloscopeData(DATA_DIRECTORY_PATH, dataBase.readCellData(2, 2))
+dataBase = _dataBase()
+approximateFomula = _approximateFomula()
+readEachValue = _readEachValue()
 
-oscilloscopeData.convert()
+dataBase.openSheet()
+#TODO 要変更
 
-approximateFomula = _driveApproximateFomula(oscilloscopeData._outputOscilloscopeData1Name, dataBase.readCellData(1, 2))
+oscilloscopeDataFilePath = csvToXlsx(oscilloscopeFilePath(DATA_DIRECTORY_PATH, dataBase.readCellValue(2, 2), READ_DATA1, "CSV"))
 
-approximateFomula._findRangeOf1Cycle()
+approximateFomula.openSheet()
+approximateFomula.findOneCycle()
+approximateFomula.extractOneValue()
+approximateFomula.enterApproximateFomula()
+approximateFomula.enterApproximateValue()
+approximateFomula.enterMaximumTime()
+approximateFomula.enterPeakToPeak()
 
-approximateFomula._extractRelevantValue()
+approximateFilePath = approximateFomula.saveApproximateFile()
 
-approximateFomula._findApproximateFomula()
+readEachValue.openSheet()
 
-approximateFomula._findMaximumTime()
-approximateFomula._findPeakToPeak()
+print("phase peak = {:f}".format(readEachValue.findPhasePeak()))
 
-phasePeakValue = _findPhasePeakValue(approximateFomula.end())
+print("peak peak value = {:f}".format(readEachValue.findPeakPeakValue()))
 
-phasePeakValue._findPhase()
-
-print("{:.5g}".format(float(phasePeakValue.end())))
+readEachValue.closeSheet()
 
 dataBase.end()
