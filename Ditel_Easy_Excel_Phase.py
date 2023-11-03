@@ -5,15 +5,18 @@ import pandas
 import xlwings
 
 #定数
-SOFTWARE_VERSION:str = "v0.1.0"
+SOFTWARE_VERSION:str = "v0.1.1"
     
-def terminalPrint(_status:bool, _message:str):  #ターミナルにメッセージを表示する   返り値:なし
+def terminalPrint(_status:bool, _message:str, _printOverlay:bool = False):  #ターミナルにメッセージを表示する   返り値:なし
     if(_status):
         _printStatus = "  OK  "
     else:
         _printStatus = "FAILED"
     
-    print("[{}]  {}".format(_printStatus, _message))
+    if(_printOverlay):
+        print("[{}]  {}".format(_printStatus, _message), end="\r")
+    else:
+        print("[{}]  {}".format(_printStatus, _message))
 
 def oscilloscopeFilePath(_directoryPath:str, _dataName:str, _channel:str, _dataType:str): #ALLxxxxからオシロスコープのExcelファイルの絶対パスを生成する 返り値:絶対パス
     return "{}\\{}\\F{}{}.{}".format(_directoryPath, _dataName, _dataName[3:], _channel, _dataType)
@@ -23,16 +26,16 @@ def csvToXlsx(_filePath:str):   #csvファイルをxlsxに変換する    返り
         _inputFile = pandas.read_csv(_filePath)
         terminalPrint(True, "read {}".format(_filePath))
     except:
-        terminalPrint(False, "read {}".format(_filePath))
+        terminalPrint(False, "E 001 : read {}".format(_filePath))
         exit()
     
     try:
-        _outputFilePath:str = "{}xlsx".format(_inputFile[:-3])
+        _outputFilePath:str = "{}xlsx".format(_filePath[:-3])
         _inputFile.to_excel(_outputFilePath)
         terminalPrint(True, "convert to excel")
         return _outputFilePath
     except:
-        terminalPrint(False, "convert to excel")
+        terminalPrint(False, "E 002 : convert to excel")
         exit()
     
 
@@ -47,13 +50,13 @@ class _cell:    #高度なセルの操作
             self._workSheet = self._excelFile.sheets[_sheetName]
             terminalPrint(True, "open {}".format(_filePath))
         except:
-            terminalPrint(False, "open {}".format(_filePath))
+            terminalPrint(False, "E 003 : open {}".format(_filePath))
             exit()
         
-    def getValue(self, _cellAddreess):  #任意のセルの値を読み取る   返り値:読み取ったセルの値
+    def getValue(self, _cellAddreess, _printOverlay:bool = False):  #任意のセルの値を読み取る   返り値:読み取ったセルの値
         _readValue = self._workSheet.range(_cellAddreess).value
         try:
-            terminalPrint(True, "read value = {:f}".format(float(_readValue)))
+            terminalPrint(True, "read value = {:f}".format(float(_readValue)), _printOverlay)
             return float(_readValue)
         except:
             terminalPrint(True, "read value = {}".format(str(_readValue)))
@@ -64,7 +67,7 @@ class _cell:    #高度なセルの操作
             self._excelFile.close()
             terminalPrint(True, "close {}".format(self._excelFilePath))
         except:
-            terminalPrint(False, "close {}".format(self._excelFilePath))
+            terminalPrint(False, "E 004 : close {}".format(self._excelFilePath))
             exit()
 
     
@@ -78,7 +81,7 @@ class _dataBase:    #データベースファイルの操作
             self._workBook.close()
             terminalPrint(True, "close dataBase file")
         except:
-            terminalPrint(False, "close dataBase file")
+            terminalPrint(False, "E 005 : close dataBase file")
             exit()
 
     def openSheet(self):    #シートを開く   返り値:なし
@@ -87,16 +90,16 @@ class _dataBase:    #データベースファイルの操作
             self._workSheet = self._workBook["DataBase"]
             terminalPrint(True, "open dataBase sheet")
         except:
-            terminalPrint(False, "open dataBase sheet")
+            terminalPrint(False, "E 006 : open dataBase sheet")
             exit()
 
     def readCellValue(self, _column:int, _row:int):  #任意のセルの値を読み取る  返り値:なし
         try:
             _readValue = self._workSheet.cell(column=_column, row=_row).value
-            terminalPrint(True, "read value = {:f}".format(float(_readValue)))
+            terminalPrint(True, "read value = {}".format(_readValue))
             return _readValue
         except:
-            terminalPrint(False, "read value")
+            terminalPrint(False, "E 007 : read value")
             exit()
 
 
@@ -112,8 +115,8 @@ class _approximateFomula:  #近似式の導出
             self._mainWorkSheet = self._workBook["Sheet1"]
             terminalPrint(True, "open sheet")
         except:
-            terminalPrint(False, "open sheet")
-            eixt()
+            terminalPrint(False, "E 008 : open sheet")
+            exit()
 
     def findOneCycle(self): #1周期分の行の範囲を導出    返り値:なし
         _nowColumn = self._readStartRow
@@ -137,7 +140,7 @@ class _approximateFomula:  #近似式の導出
             
             terminalPrint(True, "create forCaluculation sheet")
         except:
-            terminalPrint(False, "create forCaluculation sheet")
+            terminalPrint(False, "E 009 : create forCaluculation sheet")
             exit()
         
         _originalNowColumn:int = 5
@@ -172,7 +175,7 @@ class _approximateFomula:  #近似式の導出
             terminalPrint(True, "copy extract for the relevant value")
             self._toEndRow = _toNowRow - 1
         else:
-            terminalPrint(False, "copy extract For the relevant value")
+            terminalPrint(False, "E 010 : copy extract For the relevant value")
             exit()
     
     def enterApproximateFomula(self):    #近似式の次数ごとの係数をセルに入力 返り値:なし
@@ -210,11 +213,11 @@ class _approximateFomula:  #近似式の導出
     
     def saveApproximateFile(self):  #近似式等を入力したファイルを保存する   返り値:保存したファイルの絶対パス
         try:
-            self._workBook.save("{}_TemporaryData.xlsx".format(self.excelFilePath))
+            self._workBook.save("{}_TemporaryData.xlsx".format(self._excelFilePath))
             terminalPrint(True, "save approximate file")
-            return "{}_TemporaryData.xlsx".format(self.excelFilePath)
+            return "{}_TemporaryData.xlsx".format(self._excelFilePath)
         except:
-            terminalPrint(False, "save approximate file")
+            terminalPrint(False, "E 011 : save approximate file")
             exit()
         
     def closeSheet(self):   #対象のシートを閉じる   返り値:なし
@@ -238,7 +241,7 @@ class _readEachValue:   #ファイルから各値を読み取る
             
             terminalPrint(True, "open sheet")
         except:
-            terminalPrint(False, "open sheet")
+            terminalPrint(False, "E 012 : open sheet")
             exit()
     
     def findPhasePeak(self):    #ピーク値をとるときの時間を導出 戻り値:導出された時間
@@ -249,14 +252,14 @@ class _readEachValue:   #ファイルから各値を読み取る
         _readNowRow:int = 1
         
         while(True):
-            if(cell.getValue("C{:d}".format(_readNowRow)) == None):
-                terminalPrint(False, "find peak value")
+            _readNowRowValue = cell.getValue("C{:d}".format(_readNowRow), True)
+            if(_readNowRowValue == None):
+                terminalPrint(False, "E 013 : find peak value")
                 self._workBook.close()
                 exit()
-            elif(cell.getValue("C{:d}".format(_readNowRow)) == _yMaxValue):
-                terminalPrint(True, "find peak value")
+            elif(_readNowRowValue == _yMaxValue):
+                terminalPrint(True, "find peak value                    ")
                 _phasePeakValue = self._workSheet.cell(column=1, row=_readNowRow).value
-                print(_readNowRow)
                 break
             
             _readNowRow += 1
@@ -269,12 +272,130 @@ class _readEachValue:   #ファイルから各値を読み取る
     def closeSheet(self):   #対象のシートを閉じる   返り値:なし
         try:
             self._workBook.close()
+            cell.closeSheet()
             
             terminalPrint(True, "close sheet")
         except:
-            terminalPrint(False, "close sheet")
+            terminalPrint(False, "E 014 : close sheet")
             exit()
-            
+
+
+class _main:
+    def __init__(self):
+        pass
+    
+    def creatFile(self):
+        try:
+            self._newWorkBook = openpyxl.Workbook()
+            self._newWorkSheet = self._newWorkBook.active
+            terminalPrint(True, "create output file")
+        except:
+            terminalPrint(False, "E 016 : create output file")
+            exit()
+        
+        self._newWorkSheet.title = "計算結果"
+        
+        self._newWorkSheet["A1"] = "ファイル詳細"
+        self._newWorkSheet["E1"] = "位相差"
+        self._newWorkSheet["H1"] = "増幅率"
+        
+        self._newWorkSheet["A2"] = "周波数(Hz)"
+        self._newWorkSheet["B2"] = "{}ファイル名".format(READ_DATA1)
+        self._newWorkSheet["C2"] = "{}ファイル名".format(READ_DATA2)
+        self._newWorkSheet["E2"] = "周波数(Hz)"
+        self._newWorkSheet["F2"] = "{}-{}".format(READ_DATA2, READ_DATA1)
+        self._newWorkSheet["H2"] = "周波数(Hz)"
+        self._newWorkSheet["I2"] = "{}/{}".format(READ_DATA2, READ_DATA1)
+        
+        self._newWorkBook.save(OUTPUT_FILE_PATH)
+        
+    def openSheet(self):
+        try:
+            self._workBook = openpyxl.load_workbook(OUTPUT_FILE_PATH)
+            self._workSheet = self._workBook["計算結果"]
+            terminalPrint(True, "open {}".format(OUTPUT_FILE_PATH))
+        except:
+            terminalPrint(False, "E 017 : open {}".format(OUTPUT_FILE_PATH))
+            exit()
+        
+        
+    def derivationPhaseRatio(self, _row:int):
+        _frequency = dataBase.readCellValue(1, _row)
+        if(_frequency == None):
+            return None
+        
+        terminalPrint(True, "find the phase difference and amplification factor of the {:d} line".format(_row))
+        
+        _OSCFile1Path:str = csvToXlsx(oscilloscopeFilePath(DATA_DIRECTORY_PATH, dataBase.readCellValue(2, _row), READ_DATA1, "CSV"))
+        _OSCFile2Path:str = csvToXlsx(oscilloscopeFilePath(DATA_DIRECTORY_PATH, dataBase.readCellValue(2, _row), READ_DATA2, "CSV"))
+        
+        approximateFomula.openSheet(_OSCFile1Path, _frequency)
+        approximateFomula.findOneCycle()
+        approximateFomula.extractOneValue()
+        approximateFomula.enterApproximateFomula()
+        approximateFomula.enterApproximateValue()
+        approximateFomula.enterMaximumTime()
+        approximateFomula.enterPeakToPeak()
+
+        approximateFilePath = approximateFomula.saveApproximateFile()
+        
+        approximateFomula.closeSheet()
+        readEachValue.openSheet(approximateFilePath)
+
+        _OSCFile1Phase:float = readEachValue.findPhasePeak()
+        _OSCFile1PeakPeak:float = readEachValue.findPeakPeakValue()
+
+        readEachValue.closeSheet()
+        
+        approximateFomula.openSheet(_OSCFile2Path, _frequency)
+        approximateFomula.findOneCycle()
+        approximateFomula.extractOneValue()
+        approximateFomula.enterApproximateFomula()
+        approximateFomula.enterApproximateValue()
+        approximateFomula.enterMaximumTime()
+        approximateFomula.enterPeakToPeak()
+        
+        approximateFilePath = approximateFomula.saveApproximateFile()
+        
+        approximateFomula.closeSheet()
+        readEachValue.openSheet(approximateFilePath)
+
+        _OSCFile2Phase:float = readEachValue.findPhasePeak()
+        _OSCFile2PeakPeak:float = readEachValue.findPeakPeakValue()
+        
+        if((float(_OSCFile2Phase) - float(_OSCFile1Phase)) >= 0):
+            self._phase:float = 360 * ((float(_OSCFile2Phase) - float(_OSCFile1Phase)) / (1 / _frequency))
+        else:
+            self._phase:float = 360 * (((1 / _frequency) - abs(float(_OSCFile2Phase) - float(_OSCFile1Phase))) / (1 / _frequency))
+        
+        self._ratio:float = float(_OSCFile2PeakPeak) / float(_OSCFile1PeakPeak)
+        
+        terminalPrint(True, "phase contrast = {:f} (°)".format(self._phase))
+        terminalPrint(True, "amplification ratio = {:f}".format(self._ratio))
+
+        readEachValue.closeSheet()
+        
+        self._workSheet.cell(column=1, row=_row + 1).value = _frequency
+        self._workSheet.cell(column=2, row=_row + 1).value = _OSCFile1Path[-12:]
+        self._workSheet.cell(column=3, row=_row + 1).value = _OSCFile2Path[-12:]
+        
+        self._workSheet.cell(column=5, row=_row + 1).value = _frequency
+        self._workSheet.cell(column=6, row=_row + 1).value = self._phase
+        
+        self._workSheet.cell(column=8, row=_row + 1).value = _frequency
+        self._workSheet.cell(column=9, row=_row + 1).value = self._ratio
+        
+        terminalPrint(True, "finish enter result : row = {}".format(str(_row)))
+        
+        return 1
+
+    def closeSheet(self):
+        try:
+            self._workBook.save(OUTPUT_FILE_PATH)
+            terminalPrint(True, "save output file")
+        except:
+            terminalPrint(False, "E 018 : save output file")
+            exit()
 
 print("*** Start Ditel Easy Excel Phase Contrast Program ***");
 terminalPrint(True, "version : {}".format(SOFTWARE_VERSION))
@@ -283,6 +404,7 @@ try:
     READ_DATA1:str = sys.argv[1]
     READ_DATA2:str = sys.argv[2]
     DATA_DIRECTORY_PATH:str = sys.argv[3]
+    OUTPUT_FILE_PATH:str = "{}\\{}.xlsx".format(DATA_DIRECTORY_PATH, sys.argv[4])
     
     if((READ_DATA1 != "CH1") and (READ_DATA1 != "CH2") and (READ_DATA1 != "MTH")):
         raise ValueError(None)
@@ -294,41 +416,27 @@ try:
     terminalPrint(True, "read data directory Path = {}".format(DATA_DIRECTORY_PATH))
     terminalPrint(True, "read Data1 type = {}".format(READ_DATA1))
     terminalPrint(True, "read Data2 type = {}".format(READ_DATA2))
+    terminalPrint(True, "output file name = {}".format(OUTPUT_FILE_PATH))
 except:
-    terminalPrint(False, "read data Information")
+    terminalPrint(False, "E 015 : read data Information")
     print("please input data directory path")
-    print('Ex : python3 ./Ditel_Easy_Excel_Phase  "Data1 Type" "Data2 Type" "data Directory Path"')
+    print('Ex : python3 ./Ditel_Easy_Excel_Phase "Data1 Type" "Data2 Type" "data directory path" "output file name"')
     print('only "CH1", "CH2" or "MTH" can be entered for "DATA Type" and "DATA2 Type"')
     exit()
     
 DATA_BASE_FILE_PAHT:str = "{}\\{}".format(os.getcwd(), "dataBase.xlsx")
 
 cell = _cell()
-dataBase = _dataBase()
+dataBase = _dataBase(DATA_BASE_FILE_PAHT)
 approximateFomula = _approximateFomula()
 readEachValue = _readEachValue()
+main = _main()
 
 dataBase.openSheet()
-#TODO 要変更
 
-oscilloscopeDataFilePath = csvToXlsx(oscilloscopeFilePath(DATA_DIRECTORY_PATH, dataBase.readCellValue(2, 2), READ_DATA1, "CSV"))
+main.creatFile()
+main.openSheet()
+main.derivationPhaseRatio(2)
+main.closeSheet()
 
-approximateFomula.openSheet()
-approximateFomula.findOneCycle()
-approximateFomula.extractOneValue()
-approximateFomula.enterApproximateFomula()
-approximateFomula.enterApproximateValue()
-approximateFomula.enterMaximumTime()
-approximateFomula.enterPeakToPeak()
-
-approximateFilePath = approximateFomula.saveApproximateFile()
-
-readEachValue.openSheet()
-
-print("phase peak = {:f}".format(readEachValue.findPhasePeak()))
-
-print("peak peak value = {:f}".format(readEachValue.findPeakPeakValue()))
-
-readEachValue.closeSheet()
-
-dataBase.end()
+print("finish !!")
