@@ -151,6 +151,11 @@ class _driveApproximateFomula:  #近似式を導出する
         self.calculationSheet["E16"] = "yの最大値"
         
         self.calculationSheet["E17"] = "=MAX(C1:C{:d})".format(self.copyDataEndRow)
+        
+    def _findPeakToPeak(self):
+        self.calculationSheet["F16"] = "Peak To Peak"
+        
+        self.calculationSheet["F17"] = "=ABS(MAX(C1:C{:d}) - MIN(C1:C{:d}))".format(self.copyDataEndRow, self.copyDataEndRow)
     
     def end(self):
         self._workBook.save("{}_TemporaryData.xlsx".format(self.excelFilePath))
@@ -167,6 +172,7 @@ class _findPhasePeakValue:
         self.cell = _cell(_readFilePath, "forCalculation")
         
         self.yMaxValue:float = self.cell.getValue("E17")
+        self.yPeakToPeak:float = self.cell.getValue("F17")
         
         self.phasePeakValue:float = None
     
@@ -190,7 +196,7 @@ class _findPhasePeakValue:
     def end(self):
         self._workBook.close()
         self.cell.end()
-        return self.phasePeakValue
+        return self.yPeakToPeak
         
         
 print("*** Start Ditel Easy Excel Phase Contrast Program ***");
@@ -242,6 +248,7 @@ approximateFomula._extractRelevantValue()
 approximateFomula._findApproximateFomula()
 
 approximateFomula._findMaximumTime()
+approximateFomula._findPeakToPeak()
 
 phasePeakValue = _findPhasePeakValue(approximateFomula.end())
 
